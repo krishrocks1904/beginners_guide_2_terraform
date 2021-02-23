@@ -21,20 +21,9 @@ resource "azurerm_resource_group" "rg" {
 }
 
 #------------------------------------------------------
-#----------------- This is a storage account module 
+#----------------- This is a virtual network module 
 
 #------------------------------------------------------
-module "storage_account" {
-  source = "../modules/storage_account"
-
-  storage_account_config = var.storages
-  # resource_group_name = azurerm_resource_group.rg.name
-  # location =var.location
-
-  # # "bee-learn-eus-dev-01" => beelearneusdev0101 ,beelearneusdev0102
-  # storage_account_name = local.environment_prefix
-  # tags =var.tags
-}
 
 
 module "network" {
