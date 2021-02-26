@@ -1,75 +1,136 @@
+locals {
 
-resource "azurerm_network_ddos_protection_plan" "example" {
-  name                = "ddospplan1"
- location            = var.location
-  resource_group_name = var.resource_group_name
+  subnets = [for k, v in local.deployment.network : [
+    for key, val in lookup(v, "subnets", []) :
+    [
+      merge(
+              { 
+                    resource = k
+                    subnet_name    = key
+                    service_endpoints = [
+                      "Microsoft.KeyVault",
+                      "Microsoft.Storage"
+                    ],
+                    delegation         = null
+                    enable_nat_gateway = false 
+              },
+        val)
+    ] #if !lookup(val,"type", false)  #[NOTE] create storage account if lookup is false
+    ] if v.type == "virtual_network" && lookup(v, "subnets", []) != []
+  ]
 }
 
-resource "azurerm_virtual_network" "example" {
-  name                = var.network_name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  address_space       = ["10.0.0.0/16"]
-  dns_servers         = ["10.0.0.4", "10.0.0.5"]
-
-  ddos_protection_plan {
-    id     = azurerm_network_ddos_protection_plan.example.id
-    enable = true
+resource "azurerm_network_ddos_protection_plan" "resource" {
+  for_each = {
+    for k, v in local.deployment.network : k => v
+    if v.type == "virtual_network" && lookup(v, "enable_ddos_protection_plan", false)
   }
-
-  subnet {
-    name           = "web"
-    address_prefix = "10.0.1.0/24"
-  }
-
-  subnet {
-    name           = "service"
-    address_prefix = "10.0.2.0/24"
-  }
-
-  subnet {
-    name           = "data"
-    address_prefix = "10.0.3.0/24"
-    #security_group = azurerm_network_security_group.example.id
-  }
-
-  tags = {
-    environment = "Production"
-  }
-}
-
-
-resource "azurerm_network_security_group" "example" {
-  name                = "learn-nsg"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-}
-
-resource "azurerm_network_security_rule" "example" {
+  name                = format("%s-%s", each.key, "ddos")
+  resource_group_name = each.value.resource_group_name
+  location            = each.value.location
   
-  name                        = "control-outbound"
-  priority                    = 100
-  direction                   = "Outbound"
-  access                      = "Allow"
-  protocol                    = "Tcp"
-  source_port_range           = "*"
-  destination_port_range      = "*"
-  source_address_prefix       = "*"
-  destination_address_prefix  = "*"
-
-  resource_group_name = var.resource_group_name
-  network_security_group_name = azurerm_network_security_group.example.name
 }
 
-data "azurerm_subnet" "subnet" {
-  name                 = "data"
-  virtual_network_name = var.network_name
-  resource_group_name  = var.resource_group_name
-  depends_on = [ azurerm_virtual_network.example ]
+data "azurerm_network_ddos_protection_plan" "resource" {
+
+  for_each = {
+    for k, v in local.deployment.network : k => v
+    if v.type == "virtual_network" && lookup(v, "enable_ddos_protection_plan", false)
+  }
+  name                = azurerm_network_ddos_protection_plan.resource[each.key].name
+  resource_group_name = each.value.resource_group_name
 }
 
-resource "azurerm_subnet_network_security_group_association" "example" {
-  
-  subnet_id                 = data.azurerm_subnet.subnet.id
-  network_security_group_id = azurerm_network_security_group.example.id
+
+
+resource "azurerm_virtual_network" "resource" {
+
+  for_each = {
+    for k, v in local.deployment.network : k => v
+    if v.type == "virtual_network"
+  }
+
+  name                = each.key
+  resource_group_name = each.value.resource_group_name
+  location            = each.value.location
+  address_space       = each.value.address_space
+  dns_servers         = lookup(each.value, "dns_servers", null)
+
+  dynamic "ddos_protection_plan" {
+    for_each = lookup(each.value, "enable_ddos_protection_plan", false) == true ? [1] : []
+    content {
+      id     = data.azurerm_network_ddos_protection_plan.resource[each.key].id
+      enable = true
+    }
+  }
+
+  tags = merge(lookup(each.value, "tags", {}), var.tags)
+
 }
+
+data "azurerm_virtual_network" "resource" {
+  for_each = {
+    for k, v in local.deployment.network : k => v
+    if v.type == "virtual_network"
+  }
+
+  name                = each.key
+  resource_group_name = each.value.resource_group_name
+  depends_on          = [azurerm_virtual_network.resource]
+}
+
+resource "azurerm_subnet" "resource" {
+  for_each = { for entry in flatten(local.subnets) : "${entry.resource}-${entry.subnet_name}" => entry
+    #   if upper(entry.type) == upper("azure_blob_storage") 
+  }
+  name                                           = each.value.subnet_name
+  resource_group_name                            = data.azurerm_virtual_network.resource[each.value.resource].resource_group_name
+  virtual_network_name                           = data.azurerm_virtual_network.resource[each.value.resource].name
+  address_prefix                                 = each.value.address_prefix
+  service_endpoints                              = each.value.service_endpoints
+  enforce_private_link_endpoint_network_policies = lookup(each.value, "disable_network_policies", false)
+  dynamic "delegation" {
+    for_each = each.value.delegation != null ? [1] : []
+    content {
+      name = each.value.delegation.name
+      service_delegation {
+        actions = each.value.delegation.service_delegation.actions
+        name    = each.value.delegation.service_delegation.name
+      }
+    }
+  }
+  depends_on = [azurerm_virtual_network.resource]
+
+}
+
+
+data "azurerm_subnet" "resource" {
+  for_each = { for entry in flatten(local.subnets) : "${entry.resource}-${entry.subnet_name}" => entry
+    #   if upper(entry.type) == upper("azure_blob_storage") 
+  }
+
+  name                 = each.value.subnet_name
+  resource_group_name  = data.azurerm_virtual_network.resource[each.value.resource].resource_group_name
+  virtual_network_name = data.azurerm_virtual_network.resource[each.value.resource].name
+
+  depends_on = [ azurerm_virtual_network.resource, azurerm_subnet.resource]
+}
+
+
+
+
+
+resource "azurerm_virtual_network_peering" "example-2" {
+  name                      = "peer2to1"
+  resource_group_name       = "rg-ava-ler-wus-dev-01"
+  virtual_network_name      = "vnet-gx-eus-hub"
+  #allow_virtual_network_access = false 
+  remote_virtual_network_id = data.azurerm_virtual_network.resource["vnet-gx-eus-mgmt"].id
+}
+
+# resource "azurerm_virtual_network_peering" "example-1" {
+#   name                      = "peer1to2"
+#   resource_group_name       = azurerm_resource_group.example.name
+#   virtual_network_name      = azurerm_virtual_network.example-1.name
+#   remote_virtual_network_id = azurerm_virtual_network.example-2.id
+# }

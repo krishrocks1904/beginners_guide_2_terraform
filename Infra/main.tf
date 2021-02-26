@@ -1,24 +1,15 @@
-locals {
-   environment_prefix = format("%s-%s-%s-%s-%s", var.company_name,var.project_name,lookup(local.locations,var.location,"none"), var.environment_name, var.environment_instance)
 
-   locations ={
-     eastus = "eus"
-     westeurupe = "euw"
-   }
+resource "azurerm_resource_group" "resource_group_management" {
+  for_each = { for k, v in local.management.resource_group : k => v
+    if lookup(v, "lookup", true) == false
+  }
 
-   storge_properties = {
-     account_tier             = "Standard"
-     account_replication_type = "GRS"
-   }
+  name     = each.key
+  location = each.value.location
+  tags     = merge(lookup(each.value, "tags", {}), local.management.tags)
 }
 
-# Create a resource group
-# this is azure resource group for demo
-resource "azurerm_resource_group" "rg" {
-  name     = format("%s-%s", "rg",local.environment_prefix)
-  location = var.location
-  tags = merge({Application = "DEMO"}, var.tags)
-}
+
 
 #------------------------------------------------------
 #----------------- This is a virtual network module 
@@ -27,11 +18,14 @@ resource "azurerm_resource_group" "rg" {
 
 
 module "network" {
-  source = "../modules/network"
-  resource_group_name = azurerm_resource_group.rg.name
-  location =var.location
-  network_name = format("%s-%s","vnet",local.environment_prefix)
-  tags =var.tags
+  source        = "../modules/network"
+  
+  #source       = "git::ssh://git@ssh.dev.azure.com/v3/ava-opscentre/CI - GX Application/Gx-Framework//src/modules/network"
+  deployment  =local.deployment
+  management  =local.management
+  tags =  local.management.tags
+  
+  depends_on = [ azurerm_resource_group.resource_group_management ]
 }
 
 

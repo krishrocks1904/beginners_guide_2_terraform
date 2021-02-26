@@ -1,17 +1,11 @@
-variable "network_name" {
-    type = string
-    description = "(optional) describe your variable"
+variable "deployment" {
+  description = "(mandatory) deployment of resources"
 }
 
-variable "resource_group_name" {
-    type = string
-    description = "(optional) describe your variable"
-}
-variable "location" {
-    type = string
-    description = "(optional) describe your variable"
+variable "management" {
+  description = "(mandatory) deployment of resources"
 }
 
 variable "tags" {
-    
+  description = "(mandatory) tags block"
 }

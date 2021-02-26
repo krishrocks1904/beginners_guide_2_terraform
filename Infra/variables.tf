@@ -1,87 +1,36 @@
-variable "prefix" {
-    type = string
-    description = "(optional) describe your variable"
+variable "client_id" {
+  type = string
+  default = "client_id"
+  description = "(mandatory) client Id of service principal"
+}
+variable "client_secret" {
+  type = string
+  default = "client_secret"
+  description = "(mandatory) client secret of service principal"
+}
+variable "subscription_id" {
+  type = string
+  default = "subscription_id"
+  description = "(mandatory) azure subscription Id"
+}
+variable "tenant_id" {
+  type = string
+  default = "tenant_id"
+  description = "(mandatory) azure tenant Id"
 }
 
-variable "tags" {
-    default = {
-        environment ="dev"
-        cost_centre ="5001",
-        disaster_recovery = "criticle"
-    }
+variable "deployment" {
+    description = "(mandatory) deployment main tag"
+    default = {}
 }
 
-variable "location" {
-    type = string
-    description = "location where your resource needs to provision in azure"
-    default = "eastus"
+variable "management" {
+     default ={}
+  description = "(mandatory) management block"
 }
 
-variable "environment_name" {
-    type = string
-    description = "(optional) name of your environment"
+variable "network_configuration" {
+  default ={}
+  description = "(optional) network configuration json data"
 }
 
-variable "environment_instance" {
-    type = string
-    description = "(optional) name of your environment"
-}
-
-variable "project_name" {
-    type = string
-    description = "(optional) project name"
-}
-
-variable "company_name" {
-    type = string
-    description = "(optional) project name"
-}
-
-
-variable "account_tier" {
-    type = string
-    description = "(optional) describe your variable"
-    default = "Standard"
-}
-
-variable "storages" {
-   
-    description = "(optional) all storage accounts"
-
-    # default = {
-    #             strassd01 = {
-    #                 resource_group_name = "rg-bee-learn-eus-dev-01"
-    #                 location = "eastus"
-    #                 account_tier = "standard"
-
-    #                 tags = {
-    #                   application = "demo"
-    #                   cost_centre = "asdf"
-    #                   environment = "dev"
-    #                 }
-    #             },
-    #             strassd02 = {
-    #                 resource_group_name = "rg-bee-learn-eus-dev-01"
-    #                 location = "eastus"
-    #                 account_tier = "standard"
-
-    #                 tags = {
-    #                   application = "demo"
-    #                   cost_centre = "asdf"
-    #                   environment = "dev"
-    #                 }
-    #             },
-    #             strassd03 = {
-    #                 resource_group_name = "rg-bee-learn-eus-dev-01"
-    #                 location = "eastus"
-    #                 account_tier = "standard"
-
-    #                 tags = {
-    #                   application = "demo"
-    #                   cost_centre = "asdf"
-    #                   environment = "dev"
-    #                 }
-    #             }
-
-    #     }
-}
