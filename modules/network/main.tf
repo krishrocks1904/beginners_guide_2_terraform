@@ -37,3 +37,39 @@ resource "azurerm_virtual_network" "example" {
     environment = "Production"
   }
 }
+
+
+resource "azurerm_network_security_group" "example" {
+  name                = "learn-nsg"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+}
+
+resource "azurerm_network_security_rule" "example" {
+  
+  name                        = "control-outbound"
+  priority                    = 100
+  direction                   = "Outbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "*"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+
+  resource_group_name = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.example.name
+}
+
+data "azurerm_subnet" "subnet" {
+  name                 = "data"
+  virtual_network_name = var.network_name
+  resource_group_name  = var.resource_group_name
+  depends_on = [ azurerm_virtual_network.example ]
+}
+
+resource "azurerm_subnet_network_security_group_association" "example" {
+  
+  subnet_id                 = data.azurerm_subnet.subnet.id
+  network_security_group_id = azurerm_network_security_group.example.id
+}

@@ -7,12 +7,3 @@ provider "azurerm" {
   # tenant_id = var.tenant_id
 
 }
-
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "TF-Deployment"
-    storage_account_name = "saterraformstate01"
-    container_name       = "tfstate"
-    key                  = "dev.terraform.tfstate"
-  }
-}
